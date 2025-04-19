@@ -55,7 +55,8 @@ export const GameLevels: React.FC = React.memo(() => {
   const levelItems = useMemo(() => {
     return levels.map((level) => {
       const isCurrent = level === currentLevel;
-      const isCompleted = level < currentLevel;
+      // Only mark levels as completed if they are less than current level AND current level is greater than 1
+      const isCompleted = currentLevel > 1 && level < currentLevel;
 
       return (
         <LevelItem
