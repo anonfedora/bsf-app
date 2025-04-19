@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { GameState, Question } from './types';
-import { defaultQuestions } from './defaultQuestions';
 import { questions as MyQuestions } from './questions';
 import { persist } from 'zustand/middleware';
 
