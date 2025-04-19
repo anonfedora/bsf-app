@@ -6,7 +6,8 @@ const LevelItem: React.FC<{
   level: number;
   isCurrent: boolean;
   isCompleted: boolean;
-}> = React.memo(({ level, isCurrent, isCompleted }) => {
+  isFailed: boolean;
+}> = React.memo(({ level, isCurrent, isCompleted, isFailed }) => {
   const difficulty = useMemo(() => {
     if (level <= 5) return 'easy';
     if (level <= 10) return 'medium';
@@ -18,6 +19,8 @@ const LevelItem: React.FC<{
       className={`flex items-center justify-between p-2 rounded-md transition-colors duration-300 ${
         isCurrent
           ? 'bg-blue-600 text-white'
+          : isFailed
+          ? 'bg-red-600 text-white'
           : isCompleted
           ? 'bg-green-600 text-white'
           : 'bg-gray-700 text-gray-300'
@@ -41,14 +44,15 @@ const LevelItem: React.FC<{
   return (
     prevProps.level === nextProps.level &&
     prevProps.isCurrent === nextProps.isCurrent &&
-    prevProps.isCompleted === nextProps.isCompleted
+    prevProps.isCompleted === nextProps.isCompleted &&
+    prevProps.isFailed === nextProps.isFailed
   );
 });
 
 LevelItem.displayName = 'LevelItem';
 
 export const GameLevels: React.FC = React.memo(() => {
-  const { currentLevel } = useGameStore();
+  const { currentLevel, failedLevels } = useGameStore();
 
   const levels = useMemo(() => Array.from({ length: 15 }, (_, i) => i + 1), []);
 
@@ -57,6 +61,7 @@ export const GameLevels: React.FC = React.memo(() => {
       const isCurrent = level === currentLevel;
       // Only mark levels as completed if they are less than current level AND current level is greater than 1
       const isCompleted = currentLevel > 1 && level < currentLevel;
+      const isFailed = failedLevels.includes(level);
 
       return (
         <LevelItem
@@ -64,10 +69,11 @@ export const GameLevels: React.FC = React.memo(() => {
           level={level}
           isCurrent={isCurrent}
           isCompleted={isCompleted}
+          isFailed={isFailed}
         />
       );
     });
-  }, [levels, currentLevel]);
+  }, [levels, currentLevel, failedLevels]);
 
   return (
     <div className="bg-gradient-to-br from-gray-900 to-gray-800 p-6 rounded-lg shadow-lg">

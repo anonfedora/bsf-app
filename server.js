@@ -2,6 +2,8 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const path = require('path');
+const { questions } = require('./questions');
 
 const app = express();
 app.use(cors());
@@ -9,7 +11,7 @@ app.use(cors());
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: "*",
     methods: ["GET", "POST"]
   }
 });
@@ -22,7 +24,9 @@ let gameState = {
   gameStarted: true,
   gameEnded: false,
   score: 0,
-  questionsAnswered: 0
+  questionsAnswered: 0,
+  currentLevel: 1,
+  questions: questions
 };
 
 io.on('connection', (socket) => {
@@ -30,6 +34,11 @@ io.on('connection', (socket) => {
 
   // Send initial state to new connection
   socket.emit('gameState', gameState);
+
+  // Handle game state requests
+  socket.on('getGameState', () => {
+    socket.emit('gameState', gameState);
+  });
 
   // Handle game state updates
   socket.on('updateGameState', (newState) => {
@@ -39,21 +48,55 @@ io.on('connection', (socket) => {
 
   // Handle question selection
   socket.on('selectQuestion', (question) => {
-    gameState.currentQuestion = question;
-    gameState.selectedOption = null;
-    gameState.revealAnswer = false;
+    gameState = {
+      ...gameState,
+      currentQuestion: question,
+      selectedOption: null,
+      revealAnswer: false,
+      gameStarted: true
+    };
     io.emit('gameState', gameState);
   });
 
   // Handle option selection
   socket.on('selectOption', (optionId) => {
-    gameState.selectedOption = optionId;
+    gameState = {
+      ...gameState,
+      selectedOption: optionId
+    };
     io.emit('gameState', gameState);
   });
 
   // Handle answer reveal
   socket.on('revealAnswer', () => {
-    gameState.revealAnswer = true;
+    gameState = {
+      ...gameState,
+      revealAnswer: true
+    };
+    io.emit('gameState', gameState);
+  });
+
+  // Handle next question
+  socket.on('nextQuestion', () => {
+    const currentIndex = gameState.questions.findIndex(q => q.id === gameState.currentQuestion?.id);
+    const nextIndex = currentIndex + 1;
+    
+    if (nextIndex < gameState.questions.length) {
+      gameState = {
+        ...gameState,
+        currentQuestion: gameState.questions[nextIndex],
+        selectedOption: null,
+        revealAnswer: false,
+        questionsAnswered: gameState.questionsAnswered + 1,
+        currentLevel: Math.min(gameState.currentLevel + 1, 15)
+      };
+    } else {
+      gameState = {
+        ...gameState,
+        gameEnded: true,
+        currentQuestion: null
+      };
+    }
     io.emit('gameState', gameState);
   });
 
@@ -66,7 +109,9 @@ io.on('connection', (socket) => {
       gameStarted: true,
       gameEnded: false,
       score: 0,
-      questionsAnswered: 0
+      questionsAnswered: 0,
+      currentLevel: 1,
+      questions: questions
     };
     io.emit('gameState', gameState);
   });
@@ -79,4 +124,4 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-}); 
+});

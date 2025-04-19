@@ -4,6 +4,7 @@ import { questions as MyQuestions } from './questions';
 
 interface GameStore extends GameState {
   questions: Question[];
+  failedLevels: number[];
   initializeQuestions: () => void;
   setCurrentQuestion: (question: Question | null) => void;
   selectOption: (optionId: string) => void;
@@ -24,6 +25,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   score: 0,
   questionsAnswered: 0,
   currentLevel: 1,
+  failedLevels: [],
 
   initializeQuestions: () => {
     // Start game with MyQuestions
@@ -33,7 +35,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       gameEnded: false, 
       score: 0, 
       questionsAnswered: 0,
-      currentLevel: 1
+      currentLevel: 1,
+      failedLevels: []
     });
     
     // Set the first question
@@ -56,7 +59,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   },
 
   revealCorrectAnswer: () => {
-    const { currentQuestion, selectedOption } = get();
+    const { currentQuestion, selectedOption, currentLevel } = get();
     
     if (currentQuestion && selectedOption) {
       const isCorrect = selectedOption === currentQuestion.correctOption;
@@ -67,7 +70,10 @@ export const useGameStore = create<GameStore>()((set, get) => ({
           revealAnswer: true 
         });
       } else {
-        set({ revealAnswer: true });
+        set({ 
+          revealAnswer: true,
+          failedLevels: [...get().failedLevels, currentLevel]
+        });
       }
     }
   },
@@ -131,7 +137,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       gameEnded: false,
       score: 0,
       questionsAnswered: 0,
-      currentLevel: 1
+      currentLevel: 1,
+      failedLevels: []
     });
   },
 
