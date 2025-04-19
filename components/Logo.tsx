@@ -8,7 +8,7 @@ export const Logo: React.FC = () => {
         <CircleDollarSign size={28} className="text-blue-900" />
       </div>
       <h1 className="text-2xl md:text-3xl font-bold ml-2 text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-600">
-        Who Wants to be a Millionaire
+        Bible Trivia Blast
       </h1>
     </div>
   );

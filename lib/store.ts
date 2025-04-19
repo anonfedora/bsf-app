@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { GameState, Question } from './types';
 import { defaultQuestions } from './defaultQuestions';
+import { questions as MyQuestions } from './questions';
 import { persist } from 'zustand/middleware';
 
 interface GameStore extends GameState {
@@ -18,7 +19,7 @@ interface GameStore extends GameState {
 export const useGameStore = create<GameStore>()(
   persist(
     (set, get) => ({
-      questions: [],
+      questions: MyQuestions,
       currentQuestion: null,
       selectedOption: null,
       revealAnswer: false,
@@ -29,18 +30,9 @@ export const useGameStore = create<GameStore>()(
       currentLevel: 1,
 
       initializeQuestions: () => {
-        // Check if questions exist in localStorage
-        const storedQuestions = localStorage.getItem('millionaireQuestions');
-        if (storedQuestions) {
-          set({ questions: JSON.parse(storedQuestions) });
-        } else {
-          // If no questions in localStorage, use defaults
-          set({ questions: defaultQuestions });
-          localStorage.setItem('millionaireQuestions', JSON.stringify(defaultQuestions));
-        }
-
-        // Start game
+        // Start game with MyQuestions
         set({ 
+          questions: MyQuestions,
           gameStarted: true, 
           gameEnded: false, 
           score: 0, 
@@ -93,12 +85,12 @@ export const useGameStore = create<GameStore>()(
 
       nextQuestion: () => {
         const { questions, currentQuestion, questionsAnswered, currentLevel } = get();
-        
+        console.log(currentQuestion);
         if (!currentQuestion) return;
         
         // Find the current question's index
         const currentIndex = questions.findIndex(q => q.id === currentQuestion.id);
-        
+        console.log(currentIndex);
         // If we can't find the current question, start from the beginning
         if (currentIndex === -1) {
           set({ 
