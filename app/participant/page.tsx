@@ -21,7 +21,8 @@ export default function ParticipantPage() {
     currentLevel,
     revealCorrectAnswer,
     setCurrentQuestion,
-    updateGameState
+    updateGameState,
+    initializeQuestions
   } = useGameStore();
 
   // State to show feedback messages
@@ -55,6 +56,9 @@ export default function ParticipantPage() {
   // Initialize game state on mount
   useEffect(() => {
     if (socket) {
+      // Reset game state on mount
+      initializeQuestions();
+      
       // Request initial game state
       socket.emit('getGameState');
 
@@ -109,7 +113,7 @@ export default function ParticipantPage() {
       socket?.off('disconnect');
       socket?.off('connect_error');
     };
-  }, [socket, updateGameState]);
+  }, [socket, updateGameState, initializeQuestions]);
 
   // Add debug logging for state changes
   useEffect(() => {
