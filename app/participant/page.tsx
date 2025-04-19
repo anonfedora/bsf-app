@@ -74,7 +74,8 @@ export default function ParticipantPage() {
           gameEnded: data.gameEnded,
           score: data.score,
           questionsAnswered: data.questionsAnswered,
-          currentLevel: data.currentLevel
+          currentLevel: data.currentLevel,
+          failedLevels: data.failedLevels || []
         };
 
         // Log the updates being applied

@@ -26,7 +26,8 @@ let gameState = {
   score: 0,
   questionsAnswered: 0,
   currentLevel: 1,
-  questions: questions
+  questions: questions,
+  failedLevels: []
 };
 
 io.on('connection', (socket) => {
@@ -69,10 +70,29 @@ io.on('connection', (socket) => {
 
   // Handle answer reveal
   socket.on('revealAnswer', () => {
-    gameState = {
-      ...gameState,
-      revealAnswer: true
-    };
+    const { currentQuestion, selectedOption, currentLevel } = gameState;
+    
+    if (currentQuestion && selectedOption) {
+      const isCorrect = selectedOption === currentQuestion.correctOption;
+      
+      if (!isCorrect) {
+        gameState = {
+          ...gameState,
+          revealAnswer: true,
+          failedLevels: [...gameState.failedLevels, currentLevel]
+        };
+      } else {
+        gameState = {
+          ...gameState,
+          revealAnswer: true
+        };
+      }
+    } else {
+      gameState = {
+        ...gameState,
+        revealAnswer: true
+      };
+    }
     io.emit('gameState', gameState);
   });
 
@@ -111,7 +131,8 @@ io.on('connection', (socket) => {
       score: 0,
       questionsAnswered: 0,
       currentLevel: 1,
-      questions: questions
+      questions: questions,
+      failedLevels: []
     };
     io.emit('gameState', gameState);
   });
