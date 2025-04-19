@@ -9,7 +9,7 @@ export const useSocket = () => {
 
   useEffect(() => {
     // Initialize socket connection
-    const socketInstance = io('https://luck-onyx-sprite.glitch.me/');
+    const socketInstance = io('http://localhost:3001');
 
     socketInstance.on('connect', () => {
       console.log('Connected to server');
