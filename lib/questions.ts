@@ -1,6 +1,50 @@
 import { Question } from './types';
 
-export const questions: Question[] = [
+// Function to shuffle array using Fisher-Yates algorithm
+function shuffleArray<T>(array: T[]): T[] {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+}
+
+// Function to randomize options while maintaining correct answer
+function randomizeQuestion(question: Question): Question {
+  const options = [...question.options];
+  const correctOption = question.correctOption;
+  const correctOptionIndex = options.findIndex(opt => opt.id === correctOption);
+  const correctOptionData = options[correctOptionIndex];
+  
+  // Remove correct option from array
+  options.splice(correctOptionIndex, 1);
+  
+  // Shuffle remaining options
+  const shuffledOptions = shuffleArray(options);
+  
+  // Insert correct option at random position
+  const randomPosition = Math.floor(Math.random() * (shuffledOptions.length + 1));
+  shuffledOptions.splice(randomPosition, 0, correctOptionData);
+  
+  // Update option IDs to maintain A, B, C, D order
+  const newOptions = shuffledOptions.map((opt, index) => ({
+    ...opt,
+    id: String.fromCharCode(65 + index) // 65 is ASCII for 'A'
+  }));
+  
+  // Find new correct option ID
+  const newCorrectOption = newOptions.find(opt => opt.text === correctOptionData.text)?.id || correctOption;
+  
+  return {
+    ...question,
+    options: newOptions,
+    correctOption: newCorrectOption
+  };
+}
+
+// Original questions array
+const originalQuestions: Question[] = [
   // Round 1
   // Easy (5)
   {
@@ -1012,3 +1056,6 @@ export const questions: Question[] = [
     category: 'BSF Knowledge'
   }
 ];
+
+// Export randomized questions
+export const questions: Question[] = originalQuestions.map(randomizeQuestion);

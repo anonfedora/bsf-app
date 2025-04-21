@@ -6,7 +6,7 @@ import { QuestionDisplay } from '@/components/QuestionDisplay';
 import { GameLevels } from '@/components/GameLevels';
 import { GameControls } from '@/components/GameControls';
 import { useGameStore } from '@/lib/store';
-import { Question } from '@/lib/types';
+import { Question, GameState } from '@/lib/types';
 import { useSocket } from '@/lib/socket';
 import { questions } from '@/lib/questions';
 
@@ -18,95 +18,135 @@ export default function PresenterPage() {
     revealAnswer,
     gameStarted,
     gameEnded,
-    selectOption,
-    setCurrentQuestion,
-    revealCorrectAnswer,
-    resetAnswer,
-    restartGame,
     questionsAnswered,
     currentLevel,
-    nextQuestion: storeNextQuestion,
+    updateGameState,
     initializeQuestions,
+    score,
+    failedLevels,
   } = useGameStore();
 
   // Socket connection
-  const { socket, isConnected, connectionError, updateGameState, selectQuestion: emitQuestion, selectOption: emitOption, revealAnswer: emitReveal, resetGame: emitReset, nextQuestion: emitNextQuestion } = useSocket();
+  const { socket, isConnected, connectionError } = useSocket();
 
   // Initialize game state on mount
   useEffect(() => {
-    if (socket) {
-      // Initialize questions if not already done
-      if (!gameStarted) {
-        initializeQuestions();
-        // Emit initial game state
-        updateGameState({
-          gameStarted: true,
-          currentQuestion: questions[0],
-          currentLevel: 1,
-          questionsAnswered: 0
-        });
-      }
+    if (!socket) return;
 
-      socket.on('gameState', (data) => {
-        // Only update if there are actual changes
-        const updates: any = {};
-        let hasChanges = false;
-
-        if (data.currentQuestion && data.currentQuestion.id !== currentQuestion?.id) {
-          updates.currentQuestion = data.currentQuestion;
-          hasChanges = true;
-        }
-        if (data.selectedOption !== undefined && data.selectedOption !== selectedOption) {
-          updates.selectedOption = data.selectedOption;
-          hasChanges = true;
-        }
-        if (data.revealAnswer !== undefined && data.revealAnswer !== revealAnswer) {
-          updates.revealAnswer = data.revealAnswer;
-          hasChanges = true;
-        }
-        if (data.currentLevel !== undefined && data.currentLevel !== currentLevel) {
-          updates.currentLevel = data.currentLevel;
-          hasChanges = true;
-        }
-        if (data.gameStarted !== undefined && data.gameStarted !== gameStarted) {
-          updates.gameStarted = data.gameStarted;
-          hasChanges = true;
-        }
-
-        if (hasChanges) {
-          updateGameState(updates);
-        }
+    // Initialize questions if not already done
+    if (!gameStarted) {
+      initializeQuestions();
+      // Emit initial game state
+      socket.emit('updateGameState', {
+        gameStarted: true,
+        currentQuestion: questions[0],
+        currentLevel: 1,
+        questionsAnswered: 0,
+        selectedOption: null,
+        revealAnswer: false,
+        score: 0,
+        gameEnded: false,
+        failedLevels: []
       });
     }
 
-    return () => {
-      socket?.off('gameState');
+    const handleGameState = (data: any) => {
+      if (!data) return;
+      
+      // Update local state to match server state
+      updateGameState({
+        currentQuestion: data.currentQuestion,
+        selectedOption: data.selectedOption,
+        revealAnswer: data.revealAnswer,
+        gameStarted: data.gameStarted,
+        gameEnded: data.gameEnded,
+        score: data.score,
+        questionsAnswered: data.questionsAnswered,
+        currentLevel: data.currentLevel,
+        failedLevels: data.failedLevels || []
+      });
     };
-  }, [socket, currentQuestion, selectedOption, revealAnswer, currentLevel, gameStarted]);
+
+    // Set up event listeners
+    socket.on('gameState', handleGameState);
+
+    // Request initial state
+    socket.emit('getGameState');
+
+    return () => {
+      socket.off('gameState', handleGameState);
+    };
+  }, [socket, gameStarted, updateGameState, initializeQuestions]);
+
+  // Function to emit state updates to all clients
+  const emitGameState = (updates: Partial<GameState>) => {
+    if (!socket) return;
+    
+    // Update local state
+    updateGameState(updates);
+    // Emit to server
+    socket.emit('updateGameState', updates);
+  };
 
   const handleSelectQuestion = (question: Question) => {
-    setCurrentQuestion(question);
-    emitQuestion(question);
+    emitGameState({
+      currentQuestion: question,
+      selectedOption: null,
+      revealAnswer: false
+    });
   };
 
   const handleSelectOption = (optionId: string) => {
-    selectOption(optionId);
-    emitOption(optionId);
+    emitGameState({
+      selectedOption: optionId
+    });
   };
 
   const handleRevealAnswer = () => {
-    revealCorrectAnswer();
-    emitReveal();
+    if (!currentQuestion || !selectedOption) return;
+    
+    const isCorrect = selectedOption === currentQuestion.correctOption;
+    
+    emitGameState({
+      revealAnswer: true,
+      score: isCorrect ? (score || 0) + 1 : score,
+      failedLevels: isCorrect ? failedLevels : [...(failedLevels || []), currentLevel]
+    });
   };
 
   const handleNextQuestion = () => {
-    storeNextQuestion();
-    emitNextQuestion();
+    if (!currentQuestion) return;
+    
+    const nextIndex = questions.findIndex(q => q.id === currentQuestion.id) + 1;
+    
+    if (nextIndex < questions.length) {
+      emitGameState({
+        currentQuestion: questions[nextIndex],
+        selectedOption: null,
+        revealAnswer: false,
+        questionsAnswered: questionsAnswered + 1,
+        currentLevel: Math.min(currentLevel + 1, 15)
+      });
+    } else {
+      emitGameState({
+        gameEnded: true,
+        currentQuestion: null
+      });
+    }
   };
 
   const handleResetGame = () => {
-    restartGame();
-    emitReset();
+    emitGameState({
+      currentQuestion: questions[0],
+      selectedOption: null,
+      revealAnswer: false,
+      gameStarted: true,
+      gameEnded: false,
+      score: 0,
+      questionsAnswered: 0,
+      currentLevel: 1,
+      failedLevels: []
+    });
   };
 
   const handleClearState = () => {
@@ -114,12 +154,7 @@ export default function PresenterPage() {
     localStorage.removeItem('millionaire-game-storage');
     localStorage.removeItem('millionaireQuestions');
     
-    // Reset game state
-    restartGame();
-    emitReset();
-    
-    // Reload the page to ensure clean state
-    window.location.reload();
+    handleResetGame();
   };
 
   return (
@@ -151,7 +186,7 @@ export default function PresenterPage() {
             selectedOption={selectedOption}
             revealAnswer={revealAnswer}
             onSelectOption={handleSelectOption}
-            disabled={false}
+            disabled={false} // Presenter can select options
           />
           
           <GameControls

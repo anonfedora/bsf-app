@@ -21,4 +21,5 @@ export interface GameState {
   score: number;
   questionsAnswered: number;
   currentLevel: number;
+  failedLevels: number[];
 }
