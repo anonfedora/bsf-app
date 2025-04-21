@@ -6,7 +6,6 @@ import { QuestionDisplay } from '@/components/QuestionDisplay';
 import { GameLevels } from '@/components/GameLevels';
 import { useGameStore } from '@/lib/store';
 import { useSocket } from '@/lib/socket';
-import { difficultyToMoney, formatMoney } from '@/lib/utils';
 
 export default function ParticipantPage() {
   // Game state from store
@@ -16,13 +15,9 @@ export default function ParticipantPage() {
     revealAnswer,
     gameStarted,
     gameEnded,
-    selectOption: storeSelectOption,
     questionsAnswered,
     currentLevel,
-    revealCorrectAnswer,
-    setCurrentQuestion,
     updateGameState,
-    initializeQuestions
   } = useGameStore();
 
   // State to show feedback messages
@@ -31,106 +26,63 @@ export default function ParticipantPage() {
   // Socket connection
   const { socket, isConnected, connectionError } = useSocket();
 
-  // Add a ref to track current state
-  const currentStateRef = React.useRef({
-    currentQuestion,
-    selectedOption,
-    revealAnswer,
-    currentLevel,
-    questionsAnswered,
-    gameEnded
-  });
-
-  // Update ref when state changes
-  React.useEffect(() => {
-    currentStateRef.current = {
-      currentQuestion,
-      selectedOption,
-      revealAnswer,
-      currentLevel,
-      questionsAnswered,
-      gameEnded
-    };
-  }, [currentQuestion, selectedOption, revealAnswer, currentLevel, questionsAnswered, gameEnded]);
-
-  // Initialize game state on mount
+  // Initialize game state and set up socket listeners
   useEffect(() => {
-    if (socket) {
-      // Reset game state on mount
-      initializeQuestions();
-      
-      // Request initial game state
+    if (!socket) return;
+
+    // Request initial game state
+    socket.emit('getGameState');
+
+    const handleGameState = (data: any) => {
+      if (!data) return;
+
+      // Only update state if we receive valid data
+      updateGameState({
+        currentQuestion: data.currentQuestion,
+        selectedOption: data.selectedOption,
+        revealAnswer: data.revealAnswer,
+        gameStarted: data.gameStarted !== undefined ? data.gameStarted : true,
+        gameEnded: data.gameEnded,
+        score: data.score,
+        questionsAnswered: data.questionsAnswered,
+        currentLevel: data.currentLevel,
+        failedLevels: data.failedLevels || []
+      });
+
+      if (data.gameEnded) {
+        setMessage('Game Over!');
+      } else {
+        setMessage(null);
+      }
+    };
+
+    const handleConnect = () => {
+      setMessage(null);
       socket.emit('getGameState');
-
-      socket.on('gameState', (data) => {
-        console.log('Received game state:', data); // Debug log
-        
-        // Update all state values at once
-        const updates = {
-          currentQuestion: data.currentQuestion,
-          selectedOption: data.selectedOption,
-          revealAnswer: data.revealAnswer,
-          gameStarted: data.gameStarted !== undefined ? data.gameStarted : true,
-          gameEnded: data.gameEnded,
-          score: data.score,
-          questionsAnswered: data.questionsAnswered,
-          currentLevel: data.currentLevel,
-          failedLevels: data.failedLevels || []
-        };
-
-        // Log the updates being applied
-        console.log('Applying updates:', updates);
-        
-        // Apply updates to the store
-        updateGameState(updates);
-
-        if (data.gameEnded) {
-          setMessage('Game Over!');
-        } else {
-          setMessage(null);
-        }
-      });
-
-      // Handle connection events
-      socket.on('connect', () => {
-        console.log('Socket connected'); // Debug log
-        socket.emit('getGameState');
-      });
-
-      socket.on('disconnect', () => {
-        console.log('Socket disconnected'); // Debug log
-        setMessage('Disconnected from server');
-      });
-
-      socket.on('connect_error', (error) => {
-        console.error('Connection error:', error);
-        setMessage('Connection error. Please refresh the page.');
-      });
-    }
-
-    return () => {
-      socket?.off('gameState');
-      socket?.off('connect');
-      socket?.off('disconnect');
-      socket?.off('connect_error');
     };
-  }, [socket, updateGameState, initializeQuestions]);
 
-  // Add debug logging for state changes
-  useEffect(() => {
-    console.log('Game state updated:', {
-      gameStarted,
-      currentQuestion,
-      currentLevel,
-      questionsAnswered,
-      selectedOption,
-      revealAnswer
-    });
-  }, [gameStarted, currentQuestion, currentLevel, questionsAnswered, selectedOption, revealAnswer]);
+    const handleDisconnect = () => {
+      setMessage('Disconnected from server. Waiting to reconnect...');
+    };
 
-  const handleSelectOption = (optionId: string) => {
-    // In participant view, options are selected by the presenter
-  };
+    const handleConnectError = () => {
+      setMessage('Connection error. Please refresh the page.');
+    };
+
+    // Set up event listeners
+    socket.on('gameState', handleGameState);
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+    socket.on('connect_error', handleConnectError);
+
+    // Cleanup listeners on unmount
+    return () => {
+      socket.off('gameState', handleGameState);
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+      socket.off('connect_error', handleConnectError);
+    };
+  }, [socket, updateGameState]);
 
   return (
     <div className="millionaire-bg min-h-screen flex flex-col items-center justify-center p-4">
@@ -179,8 +131,8 @@ export default function ParticipantPage() {
                 question={currentQuestion}
                 selectedOption={selectedOption}
                 revealAnswer={revealAnswer}
-                onSelectOption={handleSelectOption}
-                disabled={true}
+                onSelectOption={() => {}} // Participant cannot select options
+                disabled={true} // Always disabled for participant
               />
               
               {gameEnded && (
