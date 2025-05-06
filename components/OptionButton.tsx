@@ -11,6 +11,7 @@ interface OptionButtonProps {
   revealAnswer: boolean;
   onSelect: (optionId: string) => void;
   disabled?: boolean;
+  isRemoved?: boolean;
 }
 
 export const OptionButton: React.FC<OptionButtonProps> = ({
@@ -19,7 +20,8 @@ export const OptionButton: React.FC<OptionButtonProps> = ({
   isCorrect,
   revealAnswer,
   onSelect,
-  disabled = false
+  disabled = false,
+  isRemoved = false
 }) => {
   const getButtonClasses = () => {
     // Default styles
@@ -35,6 +37,9 @@ export const OptionButton: React.FC<OptionButtonProps> = ({
       if (isSelected) {
         // Selected but answer not revealed yet
         classes += ' bg-blue-600 text-white shadow-lg';
+      } else if (isRemoved) {
+        // Removed option
+        classes += ' bg-gray-800 text-gray-500 opacity-50 cursor-not-allowed';
       } else {
         // Not selected and answer not revealed
         classes += ' bg-gradient-to-r from-blue-900 to-indigo-900 text-white/90';
@@ -47,6 +52,9 @@ export const OptionButton: React.FC<OptionButtonProps> = ({
       } else if (isSelected && !isCorrect) {
         // Selected wrong answer
         classes += ' bg-red-600 text-white shadow-md';
+      } else if (isRemoved) {
+        // Removed option
+        classes += ' bg-gray-800 text-gray-500 opacity-50 cursor-not-allowed';
       } else {
         // Other options
         classes += ' bg-blue-900 text-white/70 opacity-80';

@@ -3,7 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
-const { questions } = require('./questions');
+const { questions } = require('./lib/questions');
 
 const app = express();
 app.use(cors());
@@ -27,7 +27,9 @@ let gameState = {
   questionsAnswered: 0,
   currentLevel: 1,
   questions: questions,
-  failedLevels: []
+  failedLevels: [],
+  fiftyFiftyUsed: false,
+  removedOptions: []
 };
 
 // Add a lock to prevent concurrent state updates
@@ -74,7 +76,9 @@ io.on('connection', (socket) => {
         currentQuestion: question,
         selectedOption: null,
         revealAnswer: false,
-        gameStarted: true
+        gameStarted: true,
+        fiftyFiftyUsed: false,
+        removedOptions: []
       };
       io.emit('gameState', gameState);
     } finally {
@@ -158,13 +162,17 @@ io.on('connection', (socket) => {
           selectedOption: null,
           revealAnswer: false,
           questionsAnswered: gameState.questionsAnswered + 1,
-          currentLevel: Math.min(gameState.currentLevel + 1, 15)
+          currentLevel: Math.min(gameState.currentLevel + 1, 15),
+          fiftyFiftyUsed: false,
+          removedOptions: []
         };
       } else {
         gameState = {
           ...gameState,
           gameEnded: true,
-          currentQuestion: null
+          currentQuestion: null,
+          fiftyFiftyUsed: false,
+          removedOptions: []
         };
       }
       io.emit('gameState', gameState);
@@ -192,9 +200,52 @@ io.on('connection', (socket) => {
         questionsAnswered: 0,
         currentLevel: 1,
         questions: questions,
-        failedLevels: []
+        failedLevels: [],
+        fiftyFiftyUsed: false,
+        removedOptions: []
       };
       io.emit('gameState', gameState);
+    } finally {
+      stateUpdateLock = false;
+    }
+  });
+
+  // Handle role reset
+  socket.on('resetRoles', () => {
+    console.log('Received resetRoles event from presenter');
+    console.log('Broadcasting resetRoles to all clients');
+    io.emit('resetRoles');
+  });
+
+  // Handle fifty fifty
+  socket.on('fiftyFifty', () => {
+    if (stateUpdateLock) {
+      console.log('Fifty fifty blocked - another update in progress');
+      return;
+    }
+
+    try {
+      stateUpdateLock = true;
+      const { currentQuestion, fiftyFiftyUsed } = gameState;
+      
+      // Only allow fifty fifty if it hasn't been used yet
+      if (currentQuestion && !fiftyFiftyUsed) {
+        // Get all wrong options
+        const wrongOptions = currentQuestion.options
+          .filter(option => option.id !== currentQuestion.correctOption)
+          .map(option => option.id);
+
+        // Randomly select 2 wrong options to remove
+        const shuffled = [...wrongOptions].sort(() => 0.5 - Math.random());
+        const removedOptions = shuffled.slice(0, 2);
+
+        gameState = {
+          ...gameState,
+          fiftyFiftyUsed: true,
+          removedOptions
+        };
+        io.emit('gameState', gameState);
+      }
     } finally {
       stateUpdateLock = false;
     }

@@ -22,4 +22,6 @@ export interface GameState {
   questionsAnswered: number;
   currentLevel: number;
   failedLevels: number[];
+  fiftyFiftyUsed: boolean;
+  removedOptions: string[];
 }

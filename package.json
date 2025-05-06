@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "server": "ts-node server/server.ts"
+    "server": "ts-node server.js"
   },
   "dependencies": {
     "clsx": "^2.1.1",
