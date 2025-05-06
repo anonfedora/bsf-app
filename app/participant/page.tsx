@@ -18,6 +18,7 @@ export default function ParticipantPage() {
     questionsAnswered,
     currentLevel,
     updateGameState,
+    removedOptions
   } = useGameStore();
 
   // State to show feedback messages
@@ -46,7 +47,9 @@ export default function ParticipantPage() {
         score: data.score,
         questionsAnswered: data.questionsAnswered,
         currentLevel: data.currentLevel,
-        failedLevels: data.failedLevels || []
+        failedLevels: data.failedLevels || [],
+        removedOptions: data.removedOptions || [],
+        fiftyFiftyUsed: data.fiftyFiftyUsed || false
       });
 
       if (data.gameEnded) {
@@ -69,11 +72,18 @@ export default function ParticipantPage() {
       setMessage('Connection error. Please refresh the page.');
     };
 
+    const handleResetRoles = () => {
+      console.log('Received resetRoles event, redirecting to home page');
+      // Redirect to home page
+      window.location.href = '/';
+    };
+
     // Set up event listeners
     socket.on('gameState', handleGameState);
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
     socket.on('connect_error', handleConnectError);
+    socket.on('resetRoles', handleResetRoles);
 
     // Cleanup listeners on unmount
     return () => {
@@ -81,6 +91,7 @@ export default function ParticipantPage() {
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
       socket.off('connect_error', handleConnectError);
+      socket.off('resetRoles', handleResetRoles);
     };
   }, [socket, updateGameState]);
 
@@ -133,6 +144,7 @@ export default function ParticipantPage() {
                 revealAnswer={revealAnswer}
                 onSelectOption={() => {}} // Participant cannot select options
                 disabled={true} // Always disabled for participant
+                removedOptions={removedOptions}
               />
               
               {gameEnded && (
