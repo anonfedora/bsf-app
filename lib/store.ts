@@ -5,6 +5,8 @@ import { questions as MyQuestions } from './questions';
 interface GameStore extends GameState {
   questions: Question[];
   failedLevels: number[];
+  fiftyFiftyUsed: boolean;
+  removedOptions: string[];
   initializeQuestions: () => void;
   setCurrentQuestion: (question: Question | null) => void;
   selectOption: (optionId: string) => void;
@@ -13,6 +15,7 @@ interface GameStore extends GameState {
   nextQuestion: () => void;
   restartGame: () => void;
   updateGameState: (newState: Partial<GameState>) => void;
+  useFiftyFifty: () => void;
 }
 
 export const useGameStore = create<GameStore>()((set, get) => ({
@@ -26,6 +29,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   questionsAnswered: 0,
   currentLevel: 1,
   failedLevels: [],
+  fiftyFiftyUsed: false,
+  removedOptions: [],
 
   initializeQuestions: () => {
     // Start game with MyQuestions
@@ -36,7 +41,9 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       score: 0, 
       questionsAnswered: 0,
       currentLevel: 1,
-      failedLevels: []
+      failedLevels: [],
+      fiftyFiftyUsed: false,
+      removedOptions: []
     });
     
     // Set the first question
@@ -50,7 +57,9 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     set({ 
       currentQuestion: question,
       selectedOption: null,
-      revealAnswer: false
+      revealAnswer: false,
+      fiftyFiftyUsed: false,
+      removedOptions: []
     });
   },
 
@@ -100,7 +109,9 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         selectedOption: null,
         revealAnswer: false,
         questionsAnswered: questionsAnswered + 1,
-        currentLevel: Math.min(currentLevel + 1, 15)
+        currentLevel: Math.min(currentLevel + 1, 15),
+        fiftyFiftyUsed: false,
+        removedOptions: []
       });
       return;
     }
@@ -115,14 +126,18 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         selectedOption: null,
         revealAnswer: false,
         questionsAnswered: questionsAnswered + 1,
-        currentLevel: Math.min(currentLevel + 1, 15)
+        currentLevel: Math.min(currentLevel + 1, 15),
+        fiftyFiftyUsed: false,
+        removedOptions: []
       });
     } else {
       // End game if no more questions
       set({ 
         gameEnded: true,
         currentQuestion: null,
-        questionsAnswered: questionsAnswered + 1
+        questionsAnswered: questionsAnswered + 1,
+        fiftyFiftyUsed: false,
+        removedOptions: []
       });
     }
   },
@@ -138,11 +153,32 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       score: 0,
       questionsAnswered: 0,
       currentLevel: 1,
-      failedLevels: []
+      failedLevels: [],
+      fiftyFiftyUsed: false,
+      removedOptions: []
     });
   },
 
   updateGameState: (newState) => {
     set(newState);
+  },
+
+  useFiftyFifty: () => {
+    const { currentQuestion, fiftyFiftyUsed } = get();
+    if (!currentQuestion || fiftyFiftyUsed) return;
+
+    // Get all wrong options
+    const wrongOptions = currentQuestion.options
+      .filter(option => option.id !== currentQuestion.correctOption)
+      .map(option => option.id);
+
+    // Randomly select 2 wrong options to remove
+    const shuffled = [...wrongOptions].sort(() => 0.5 - Math.random());
+    const removedOptions = shuffled.slice(0, 2);
+
+    set({
+      fiftyFiftyUsed: true,
+      removedOptions
+    });
   }
 }));

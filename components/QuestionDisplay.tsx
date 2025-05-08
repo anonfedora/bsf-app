@@ -13,6 +13,7 @@ interface QuestionDisplayProps {
   onSelectOption: (optionId: string) => void;
   disabled?: boolean;
   showAnswer?: boolean;
+  removedOptions?: string[];
 }
 
 export const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
@@ -21,7 +22,8 @@ export const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
   revealAnswer,
   onSelectOption,
   disabled = false,
-  showAnswer = false
+  showAnswer = false,
+  removedOptions = []
 }) => {
   if (!question) {
     return (
@@ -46,17 +48,21 @@ export const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
         </h2>
         
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-          {question.options.map((option) => (
-            <OptionButton
-              key={option.id}
-              option={option}
-              isSelected={selectedOption === option.id}
-              isCorrect={option.id === question.correctOption}
-              revealAnswer={revealAnswer}
-              onSelect={onSelectOption}
-              disabled={disabled}
-            />
-          ))}
+          {question.options.map((option) => {
+            const isRemoved = removedOptions.includes(option.id);
+            return (
+              <OptionButton
+                key={option.id}
+                option={option}
+                isSelected={selectedOption === option.id}
+                isCorrect={option.id === question.correctOption}
+                revealAnswer={revealAnswer}
+                onSelect={onSelectOption}
+                disabled={disabled || isRemoved}
+                isRemoved={isRemoved}
+              />
+            );
+          })}
         </div>
         
         {showAnswer && (

@@ -24,6 +24,9 @@ export default function PresenterPage() {
     initializeQuestions,
     score,
     failedLevels,
+    fiftyFiftyUsed,
+    useFiftyFifty,
+    removedOptions
   } = useGameStore();
 
   // Socket connection
@@ -63,7 +66,9 @@ export default function PresenterPage() {
         score: data.score,
         questionsAnswered: data.questionsAnswered,
         currentLevel: data.currentLevel,
-        failedLevels: data.failedLevels || []
+        failedLevels: data.failedLevels || [],
+        removedOptions: data.removedOptions || [],
+        fiftyFiftyUsed: data.fiftyFiftyUsed || false
       });
     };
 
@@ -117,22 +122,12 @@ export default function PresenterPage() {
   const handleNextQuestion = () => {
     if (!currentQuestion) return;
     
-    const nextIndex = questions.findIndex(q => q.id === currentQuestion.id) + 1;
-    
-    if (nextIndex < questions.length) {
-      emitGameState({
-        currentQuestion: questions[nextIndex],
-        selectedOption: null,
-        revealAnswer: false,
-        questionsAnswered: questionsAnswered + 1,
-        currentLevel: Math.min(currentLevel + 1, 15)
-      });
-    } else {
-      emitGameState({
-        gameEnded: true,
-        currentQuestion: null
-      });
+    // Simply emit the 'nextQuestion' event and let the server handle the state update
+    if (!socket) {
+      console.error('Socket not connected');
+      return;
     }
+    socket.emit('nextQuestion');
   };
 
   const handleResetGame = () => {
@@ -155,6 +150,21 @@ export default function PresenterPage() {
     localStorage.removeItem('millionaireQuestions');
     
     handleResetGame();
+  };
+
+  const handleResetRoles = () => {
+    if (!socket) {
+      console.log('Socket is not connected');
+      return;
+    }
+    console.log('Emitting resetRoles event');
+    socket.emit('resetRoles');
+  };
+
+  const handleFiftyFifty = () => {
+    if (!socket) return;
+    useFiftyFifty();
+    socket.emit('fiftyFifty');
   };
 
   return (
@@ -187,6 +197,7 @@ export default function PresenterPage() {
             revealAnswer={revealAnswer}
             onSelectOption={handleSelectOption}
             disabled={false} // Presenter can select options
+            removedOptions={removedOptions}
           />
           
           <GameControls
@@ -197,8 +208,11 @@ export default function PresenterPage() {
             onNextQuestion={handleNextQuestion}
             onResetGame={handleResetGame}
             onClearState={handleClearState}
+            onResetRoles={handleResetRoles}
+            onFiftyFifty={handleFiftyFifty}
             revealAnswer={revealAnswer}
             gameEnded={gameEnded}
+            fiftyFiftyUsed={fiftyFiftyUsed}
           />
         </div>
       </div>
